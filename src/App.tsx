@@ -107,6 +107,8 @@ Try it now by pasting your own text!`);
   const [font, setFont] = useState('inter');
   const [showAnswers, setShowAnswers] = useState(false);
   const [hasKey, setHasKey] = useState<boolean | null>(null);
+  const [userApiKey, setUserApiKey] = useState<string>(() => localStorage.getItem('gemini_api_key') || '');
+  const [showKeyModal, setShowKeyModal] = useState(false);
 
   React.useEffect(() => {
     const checkKey = async () => {
@@ -114,38 +116,47 @@ Try it now by pasting your own text!`);
         const selected = await window.aistudio.hasSelectedApiKey();
         setHasKey(selected);
       } else {
-        setHasKey(true); // Fallback for local dev if not in AI Studio
+        setHasKey(!!userApiKey);
       }
     };
     checkKey();
-  }, []);
+  }, [userApiKey]);
 
   const handleSelectKey = async () => {
     if (window.aistudio) {
       await window.aistudio.openSelectKey();
       setHasKey(true);
+    } else {
+      setShowKeyModal(true);
     }
+  };
+
+  const saveApiKey = (key: string) => {
+    setUserApiKey(key);
+    localStorage.setItem('gemini_api_key', key);
+    setShowKeyModal(false);
+    setHasKey(!!key);
   };
 
   const handleGenerate = async () => {
     if (!passage.trim()) return;
     
-    // Check if key is selected. If null or false, trigger selection.
-    if (!hasKey) {
+    // Check if key is selected.
+    if (!hasKey && !userApiKey) {
       if (window.aistudio) {
         await window.aistudio.openSelectKey();
-        setHasKey(true); // Assume success as per guidelines
-      } else {
         setHasKey(true);
+      } else {
+        setShowKeyModal(true);
+        return;
       }
-      // After selection, we continue to generate instead of returning
     }
 
     setLoading(true);
     setError(null);
     try {
       console.log("Starting workbook generation...");
-      const result = await generateWorkbook(passage);
+      const result = await generateWorkbook(passage, userApiKey);
       setData(result);
     } catch (err: any) {
       console.error("Generation error:", err);
@@ -292,14 +303,12 @@ Try it now by pasting your own text!`);
               <span className="font-bold text-xl tracking-tighter">Zoops AI</span>
             </div>
             <div className="flex items-center gap-6">
-              {!hasKey && (
-                <button 
-                  onClick={handleSelectKey}
-                  className="text-sm font-semibold text-zinc-500 hover:text-black transition-colors"
-                >
-                  API Key 설정
-                </button>
-              )}
+              <button 
+                onClick={handleSelectKey}
+                className={`text-sm font-semibold transition-colors ${hasKey ? 'text-emerald-600 hover:text-emerald-700' : 'text-zinc-500 hover:text-black'}`}
+              >
+                {hasKey ? 'API Key 설정됨' : 'API Key 설정'}
+              </button>
               <a href="https://ai.google.dev/gemini-api/docs/billing" target="_blank" rel="noreferrer" className="text-sm font-semibold text-zinc-500 hover:text-black transition-colors">
                 Billing Info
               </a>
@@ -447,6 +456,65 @@ Try it now by pasting your own text!`);
 
       {/* Workbook Content */}
       <AnimatePresence>
+        {showKeyModal && (
+          <motion.div 
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm no-print"
+          >
+            <motion.div 
+              initial={{ scale: 0.9, y: 20 }}
+              animate={{ scale: 1, y: 0 }}
+              className="bg-white rounded-3xl p-8 max-w-md w-full shadow-2xl border border-zinc-100"
+            >
+              <div className="flex items-center gap-3 mb-6">
+                <div className="w-10 h-10 bg-black rounded-xl flex items-center justify-center text-white">
+                  <AlertCircle size={20} />
+                </div>
+                <div>
+                  <h3 className="font-bold text-xl tracking-tight">API Key 설정</h3>
+                  <p className="text-sm text-zinc-500">Gemini API 키를 입력해주세요.</p>
+                </div>
+              </div>
+
+              <div className="space-y-4">
+                <div className="space-y-2">
+                  <label className="text-xs font-bold uppercase tracking-widest text-zinc-400">API Key</label>
+                  <input 
+                    type="password"
+                    placeholder="AIzaSy..."
+                    className="w-full px-4 py-3 bg-zinc-50 border border-zinc-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-black transition-all"
+                    value={userApiKey}
+                    onChange={(e) => setUserApiKey(e.target.value)}
+                  />
+                </div>
+                
+                <div className="p-4 bg-zinc-50 rounded-xl">
+                  <p className="text-xs text-zinc-500 leading-relaxed">
+                    API 키가 없으신가요? <a href="https://aistudio.google.com/app/apikey" target="_blank" rel="noreferrer" className="text-black font-bold underline">Google AI Studio</a>에서 무료로 발급받으실 수 있습니다.
+                  </p>
+                </div>
+
+                <div className="flex gap-3 pt-2">
+                  <button 
+                    onClick={() => setShowKeyModal(false)}
+                    className="flex-1 px-6 py-3 border border-zinc-200 rounded-xl font-bold text-sm hover:bg-zinc-50 transition-all"
+                  >
+                    취소
+                  </button>
+                  <button 
+                    onClick={() => saveApiKey(userApiKey)}
+                    className="flex-1 px-6 py-3 bg-black text-white rounded-xl font-bold text-sm hover:bg-zinc-800 transition-all"
+                  >
+                    저장하기
+                  </button>
+                </div>
+              </div>
+            </motion.div>
+          </motion.div>
+        )}
+
         {data && (
           <div className={`workbook-preview theme-${theme} font-${font}`}>
             {/* Page 1: Vocabulary */}

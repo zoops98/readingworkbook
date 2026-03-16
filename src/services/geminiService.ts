@@ -29,10 +29,13 @@ export interface WorkbookData {
   };
 }
 
-export async function generateWorkbook(passage: string): Promise<WorkbookData> {
+export async function generateWorkbook(passage: string, customApiKey?: string): Promise<WorkbookData> {
   console.log("Generating workbook for passage length:", passage.length);
-  const apiKey = process.env.API_KEY || process.env.GEMINI_API_KEY || "";
+  const apiKey = customApiKey || process.env.API_KEY || process.env.GEMINI_API_KEY || "";
   
+  if (!apiKey) {
+    throw new Error("API 키가 설정되지 않았습니다. 설정 메뉴에서 API 키를 입력해주세요.");
+  }
   let attempts = 0;
   const maxAttempts = 2;
 
