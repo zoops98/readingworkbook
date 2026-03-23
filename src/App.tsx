@@ -187,10 +187,26 @@ Try it now by pasting your own text!`);
       el.classList.remove('transition-all');
     });
     
-    // Get styles from the document
-    const styles = Array.from(document.querySelectorAll('style, link[rel="stylesheet"]'))
-      .map(style => style.outerHTML)
-      .join('\n');
+    // Get all styles from the document more robustly
+    let styles = '';
+    try {
+      for (const sheet of Array.from(document.styleSheets)) {
+        try {
+          const rules = Array.from(sheet.cssRules);
+          styles += rules.map(rule => rule.cssText).join('\n') + '\n';
+        } catch (e) {
+          // Fallback for cross-origin stylesheets or sheets where rules can't be accessed
+          if (sheet.ownerNode instanceof HTMLElement) {
+            styles += sheet.ownerNode.innerHTML + '\n';
+          }
+        }
+      }
+    } catch (e) {
+      console.error("Error capturing styles:", e);
+    }
+    
+    // Escape </style> to prevent breaking the HTML structure
+    const safeStyles = styles.replace(/<\/style>/gi, '<\\/style>');
 
     const htmlContent = `
 <!DOCTYPE html>
@@ -199,7 +215,9 @@ Try it now by pasting your own text!`);
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Reading Tutor Workbook - ${data.summary.timeline[0]?.event || 'Export'}</title>
-    ${styles}
+    <style>
+      ${safeStyles}
+    </style>
     <style>
         body { 
             background: #f4f4f5; 
@@ -275,7 +293,7 @@ Try it now by pasting your own text!`);
 </body>
 </html>`;
 
-    const blob = new Blob([htmlContent], { type: 'text/html' });
+    const blob = new Blob([new TextEncoder().encode(htmlContent)], { type: 'text/html;charset=utf-8' });
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
     a.href = url;
