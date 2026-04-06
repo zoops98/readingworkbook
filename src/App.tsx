@@ -584,11 +584,6 @@ Try it now by pasting your own text!`);
 
                   {/* Right Column: Phrases & Matching */}
                   <div>
-                    <div className="grid grid-cols-2 bg-rt-bg border-b border-rt-accent">
-                       <div className="px-2 py-1 font-bold text-[8pt] border-r border-zinc-300">그의 돌아오는 길</div>
-                       <div className={`px-2 py-1 font-bold text-[8pt] italic ${showAnswers ? 'text-rt-accent' : 'text-zinc-300'}`}>his way back</div>
-                    </div>
-                    
                     <div className="h-[112px]"> {/* Space for top phrases */}
                       <table className="w-full text-[8pt]">
                         <tbody>
@@ -603,7 +598,7 @@ Try it now by pasting your own text!`);
                     </div>
 
                     <div className="bg-rt-bg border-y border-rt-accent px-2 py-1 font-bold text-[8pt]">
-                      뜻에 맞는 단어를 덮어쓴 단어에서 찾아 쓰세요
+                      단어에 알맞은 뜻을 쓰세요
                     </div>
 
                     <table className="w-full text-[8pt]">
@@ -613,7 +608,7 @@ Try it now by pasting your own text!`);
                           return (
                             <tr key={idx} className="border-b border-zinc-200">
                               <td className="w-1/2 border-r border-zinc-200 h-7 pl-2 font-medium text-rt-accent">
-                                {showAnswers ? item?.word : ""}
+                                {showAnswers ? item?.meaning : ""}
                               </td>
                               <td className={`w-1/2 pl-2 italic ${showAnswers ? 'text-rt-accent font-bold' : 'text-zinc-300'}`}>
                                 {item?.word || ""}
@@ -649,7 +644,7 @@ Try it now by pasting your own text!`);
                 {/* Bottom Right: Titles/Summaries */}
                 <div className="border border-rt-accent">
                   <div className="bg-rt-bg border-b border-rt-accent px-2 py-1 font-bold text-[8pt]">
-                    아리아드네 공주가 고대 미스터리를 풀었던 방법
+                    지문의 주제와 제목
                   </div>
                   <table className="w-full text-[8pt]">
                     <tbody>
