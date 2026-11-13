@@ -9,7 +9,77 @@
 </head>
 <body>
   <div id="root"></div>
-  <script type="module">(function(){const t=document.createElement("link").relList;if(t&&t.supports&&t.supports("modulepreload"))return;for(const i of document.querySelectorAll('link[rel="modulepreload"]'))o(i);new MutationObserver(i=>{for(const r of i)if(r.type==="childList")for(const s of r.addedNodes)s.tagName==="LINK"&&s.rel==="modulepreload"&&o(s)}).observe(document,{childList:!0,subtree:!0});function n(i){const r={};return i.integrity&&(r.integrity=i.integrity),i.referrerPolicy&&(r.referrerPolicy=i.referrerPolicy),i.crossOrigin==="use-credentials"?r.credentials="include":i.crossOrigin==="anonymous"?r.credentials="omit":r.credentials="same-origin",r}function o(i){if(i.ep)return;i.ep=!0;const r=n(i);fetch(i.href,r)}})();function hm(e){return e&&e.__esModule&&Object.prototype.hasOwnProperty.call(e,"default")?e.default:e}var mm={exports:{}},Es={},gm={exports:{}},$={};/**
+  <script id="zoops-gemini-flash-20261113">
+// 2026-12-01 Flash 전환: 저장된 모델/키를 지우지 않고 전송 시 호환한다.
+// 텍스트 Flash만 교체하며 TTS, 이미지 생성, 다른 공급자의 요청은 보존한다.
+(() => {
+  if (window.__zoopsGeminiFlashMigration20261113 || typeof window.fetch !== 'function') return;
+  Object.defineProperty(window, '__zoopsGeminiFlashMigration20261113', { value: true });
+  const nativeFetch = window.fetch.bind(window);
+  const isRecord = value => value !== null && typeof value === 'object' && !Array.isArray(value);
+
+  window.fetch = async (input, init) => {
+    let url;
+    try { url = new URL(input instanceof Request ? input.url : String(input), window.location.href); }
+    catch (_) { return nativeFetch(input, init); }
+    const match = url.pathname.match(/^\/v1(?:beta|alpha)?\/models\/(gemini-[\w.-]+):(generateContent|streamGenerateContent)$/);
+    if (url.protocol !== 'https:' || url.hostname !== 'generativelanguage.googleapis.com' || !match) return nativeFetch(input, init);
+    const model = match[1];
+    if (/image|tts|audio|embedding/.test(model)) return nativeFetch(input, init);
+    const migrating = model === 'gemini-2.5-flash';
+    if (!migrating && !/^gemini-[3-9](?:[.-]|$)/.test(model)) return nativeFetch(input, init);
+
+    const request = new Request(input instanceof Request ? input.clone() : url.href, init);
+    if (request.method !== 'POST') return nativeFetch(input, init);
+    let body;
+    try { body = JSON.parse(await request.clone().text()); }
+    catch (_) { return nativeFetch(input, init); }
+    if (!isRecord(body)) return nativeFetch(input, init);
+    if (migrating) url.pathname = url.pathname.replace('/gemini-2.5-flash:', '/gemini-3.5-flash-lite:');
+
+    // 키를 URL에 넣던 이전 앱도 헤더 인증으로 전달한다. 키 값은 저장/출력하지 않는다.
+    const headers = new Headers(request.headers);
+    const queryKey = url.searchParams.get('key');
+    if (queryKey && !headers.has('x-goog-api-key')) headers.set('x-goog-api-key', queryKey);
+    url.searchParams.delete('key');
+    headers.delete('content-length');
+
+    if (migrating && !body.generationConfig && !body.generation_config) body.generationConfig = {};
+    for (const name of ['generationConfig', 'generation_config']) {
+      const config = body[name];
+      if (!isRecord(config)) continue;
+      // 여러 답안을 한 답안으로 조용히 줄이지 않는다.
+      if ((config.candidateCount ?? config.candidate_count ?? 1) > 1) {
+        throw new Error('새 Gemini 모델은 한 요청에 한 답안만 지원합니다. 답안 생성 요청을 나누어 주세요.');
+      }
+      for (const key of ['temperature', 'topP', 'topK', 'top_p', 'top_k', 'candidateCount', 'candidate_count']) delete config[key];
+      const thinkingName = name === 'generation_config' ? 'thinking_config' : 'thinkingConfig';
+      const levelName = name === 'generation_config' ? 'thinking_level' : 'thinkingLevel';
+      let hasLevel = false;
+      for (const key of ['thinkingConfig', 'thinking_config']) {
+        const thinking = config[key];
+        if (!isRecord(thinking)) continue;
+        const budget = thinking.thinkingBudget ?? thinking.thinking_budget;
+        delete thinking.thinkingBudget;
+        delete thinking.thinking_budget;
+        if (!thinking.thinkingLevel && !thinking.thinking_level && budget !== undefined) {
+          thinking[key === 'thinking_config' ? 'thinking_level' : 'thinkingLevel'] = budget === 0 ? 'minimal' : 'medium';
+        }
+        hasLevel ||= Boolean(thinking.thinkingLevel || thinking.thinking_level);
+      }
+      // 문제 생성/분석이 minimal 기본값으로 바뀌지 않도록 중간 추론을 명시한다.
+      if (migrating && !hasLevel) {
+        config[thinkingName] = { ...(config[thinkingName] || {}), [levelName]: 'medium' };
+      }
+    }
+    // 프롬프트, 사진/PDF, JSON 스키마, tool 응답, thoughtSignature는 그대로 보낸다.
+    // 새 URL로 Request를 만들되 취소 신호와 요청 옵션은 유지한다.
+    const forwarded = new Request(url.href, request);
+    return nativeFetch(new Request(forwarded, { headers, body: JSON.stringify(body) }));
+  };
+})();
+</script>
+<script type="module">(function(){const t=document.createElement("link").relList;if(t&&t.supports&&t.supports("modulepreload"))return;for(const i of document.querySelectorAll('link[rel="modulepreload"]'))o(i);new MutationObserver(i=>{for(const r of i)if(r.type==="childList")for(const s of r.addedNodes)s.tagName==="LINK"&&s.rel==="modulepreload"&&o(s)}).observe(document,{childList:!0,subtree:!0});function n(i){const r={};return i.integrity&&(r.integrity=i.integrity),i.referrerPolicy&&(r.referrerPolicy=i.referrerPolicy),i.crossOrigin==="use-credentials"?r.credentials="include":i.crossOrigin==="anonymous"?r.credentials="omit":r.credentials="same-origin",r}function o(i){if(i.ep)return;i.ep=!0;const r=n(i);fetch(i.href,r)}})();function hm(e){return e&&e.__esModule&&Object.prototype.hasOwnProperty.call(e,"default")?e.default:e}var mm={exports:{}},Es={},gm={exports:{}},$={};/**
  * @license React
  * react.production.min.js
  *
